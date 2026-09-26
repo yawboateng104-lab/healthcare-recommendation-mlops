@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+crash.log
+
+# Databricks
+.databricks/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs / profiling
+*.log
+*.prof
+*.pstats
+
+# Generated data
+data/
+tmp/
+
+# Model artifacts
+*.pkl
+*.joblib
+*.pt
+*.pth
