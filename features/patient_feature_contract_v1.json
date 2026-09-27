@@ -1,0 +1,49 @@
+{
+  "name": "patient_features",
+  "version": "1.0.0",
+  "entity_key": "enterprise_patient_id",
+  "timestamp_column": "feature_timestamp",
+
+  "features": {
+    "claims_7d": {
+      "type": "long",
+      "description": "Number of prior claims in the previous 7 days"
+    },
+    "claims_30d": {
+      "type": "long",
+      "description": "Number of prior claims in the previous 30 days"
+    },
+    "claims_90d": {
+      "type": "long",
+      "description": "Number of prior claims in the previous 90 days"
+    },
+    "total_claim_amount_30d": {
+      "type": "double",
+      "description": "Total prior claim amount in the previous 30 days"
+    },
+    "avg_claim_amount_30d": {
+      "type": "double",
+      "description": "Average prior claim amount in the previous 30 days"
+    },
+    "rejected_claim_ratio_30d": {
+      "type": "double",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "controlled_substance_ratio_30d": {
+      "type": "double",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "refill_claim_ratio_30d": {
+      "type": "double",
+      "min": 0.0,
+      "max": 1.0
+    },
+    "cross_state_claim_ratio_30d": {
+      "type": "double",
+      "min": 0.0,
+      "max": 1.0
+    }
+  }
+}
