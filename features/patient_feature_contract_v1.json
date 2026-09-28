@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "entity_key": "enterprise_patient_id",
   "timestamp_column": "feature_timestamp",
+  "null_policy": "forbid",
 
   "features": {
     "claims_7d": {
