@@ -6,15 +6,15 @@
 
   "features": {
     "claims_7d": {
-      "type": "long",
+      "type": "bigint",
       "description": "Number of prior claims in the previous 7 days"
     },
     "claims_30d": {
-      "type": "long",
+      "type": "bigint",
       "description": "Number of prior claims in the previous 30 days"
     },
     "claims_90d": {
-      "type": "long",
+      "type": "bigint",
       "description": "Number of prior claims in the previous 90 days"
     },
     "total_claim_amount_30d": {
