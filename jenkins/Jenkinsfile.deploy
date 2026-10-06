@@ -1,0 +1,91 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+    }
+
+    environment {
+        TF_IN_AUTOMATION = 'true'
+    }
+
+    stages {
+        stage('Checkout Main') {
+            steps {
+                checkout scm
+
+                sh '''
+                    echo "Branch: $(git branch --show-current)"
+                    echo "Commit: $(git rev-parse HEAD)"
+
+                    test "$(git branch --show-current)" = "main"
+                '''
+            }
+        }
+
+        stage('Terraform Format') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform fmt -check -recursive'
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform init -reconfigure -input=false'
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir('terraform') {
+                    sh '''
+                        terraform plan \
+                          -input=false \
+                          -out=healthcare-main.tfplan
+                    '''
+                }
+            }
+        }
+         stage('Production Approval') {
+            steps {
+                input message: 'Apply this Terraform plan to the Healthcare AWS environment?',
+                      ok: 'Approve Apply'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir('terraform') {
+                    sh '''
+                        terraform apply \
+                          -input=false \
+                          -auto-approve \
+                          healthcare-main.tfplan
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            dir('terraform') {
+                sh 'rm -f healthcare-main.tfplan'
+            }
+        }
+    }
+}
