@@ -164,49 +164,66 @@ PY
                     IMAGE_TAG="candidate-${GIT_SHA}"
                     IMAGE_URI="${ECR_URI}:${IMAGE_TAG}"
 
-                    echo "Building inference image"
-                    echo "Git SHA: ${GIT_SHA}"
+                                        echo "Git SHA: ${GIT_SHA}"
                     echo "Image: ${IMAGE_URI}"
 
-                    docker build \
-                      --tag "${IMAGE_URI}" \
-                      inference-api
+                    if aws ecr describe-images \
+                      --repository-name "$ECR_REPOSITORY" \
+                      --image-ids imageTag="$IMAGE_TAG" \
+                      --region "$AWS_REGION" \
+                      >/dev/null 2>&1; then
 
-                                        echo "Validating inference container..."
+                        echo "Image already exists in immutable ECR."
+                        echo "Reusing ${IMAGE_URI}"
 
-                    docker rm -f healthcare-inference-smoke 2>/dev/null || true
+                    else
+                        echo "Building inference image..."
 
-                    docker run -d \
-                      --name healthcare-inference-smoke \
-                      -p 127.0.0.1:8000:8000 \
-                      -e REDIS_HOST=127.0.0.1 \
-                      -e REDIS_PASSWORD=smoke-test-only \
-                      "${IMAGE_URI}"
+                        docker build \
+                          --tag "${IMAGE_URI}" \
+                          inference-api
 
-                    for i in $(seq 1 30); do
-                        if curl -fsS http://127.0.0.1:8000/health; then
-                            HEALTHY=true
-                            break
-                        fi
-                        sleep 2
-                    done
+                        echo "Validating inference container..."
 
-                    test "${HEALTHY:-false}" = "true"
+                        docker rm -f healthcare-inference-smoke 2>/dev/null || true
 
-                    docker rm -f healthcare-inference-smoke
-                    aws ecr get-login-password \
-                      --region "$AWS_REGION" |
-                    docker login \
-                      --username AWS \
-                      --password-stdin \
-                      "${ECR_URI%%/*}"
+                        docker run -d \
+                          --name healthcare-inference-smoke \
+                          -p 127.0.0.1:8000:8000 \
+                          -e REDIS_HOST=127.0.0.1 \
+                          -e REDIS_PASSWORD=smoke-test-only \
+                          "${IMAGE_URI}"
 
-                    docker push "${IMAGE_URI}"
+                        for i in $(seq 1 30); do
+                            if curl -fsS http://127.0.0.1:8000/health; then
+                                HEALTHY=true
+                                break
+                            fi
+                            sleep 2
+                        done
+
+                        test "${HEALTHY:-false}" = "true"
+
+                        docker rm -f healthcare-inference-smoke
+
+                        aws ecr get-login-password \
+                          --region "$AWS_REGION" |
+                        docker login \
+                          --username AWS \
+                          --password-stdin \
+                          "${ECR_URI%%/*}"
+
+                        docker push "${IMAGE_URI}"
+                    fi
 
                     echo "IMAGE_URI=${IMAGE_URI}" > image.env
 
-                    docker image inspect "${IMAGE_URI}" \
-                      --format 'IMAGE_ID={{.Id}}'
+                    aws ecr describe-images \
+                      --repository-name "$ECR_REPOSITORY" \
+                      --image-ids imageTag="$IMAGE_TAG" \
+                      --region "$AWS_REGION" \
+                      --query 'imageDetails[0].imageDigest' \
+                      --output text 
                 '''
             }
         }
