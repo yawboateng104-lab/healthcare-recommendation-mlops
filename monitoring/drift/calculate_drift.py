@@ -60,22 +60,24 @@ def get_databricks_token():
 
 
 def execute_query(statement, token):
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
     response = requests.post(
         f"{DATABRICKS_HOST}/api/2.0/sql/statements",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
+        headers=headers,
         json={
             "warehouse_id": WAREHOUSE_ID,
             "statement": statement,
             "wait_timeout": "50s",
+            "disposition": "INLINE",
         },
         timeout=60,
     )
 
     response.raise_for_status()
-
     payload = response.json()
 
     state = payload.get("status", {}).get("state")
@@ -95,7 +97,35 @@ def execute_query(statement, token):
         for column in payload["manifest"]["schema"]["columns"]
     ]
 
-    rows = payload.get("result", {}).get("data_array", [])
+    result = payload.get("result", {})
+    rows = list(result.get("data_array", []))
+
+    statement_id = payload["statement_id"]
+    next_chunk_index = result.get("next_chunk_index")
+
+    while next_chunk_index is not None:
+        chunk_response = requests.get(
+            f"{DATABRICKS_HOST}/api/2.0/sql/statements/"
+            f"{statement_id}/result/chunks/{next_chunk_index}",
+            headers=headers,
+            timeout=60,
+        )
+
+        chunk_response.raise_for_status()
+        chunk = chunk_response.json()
+
+        rows.extend(chunk.get("data_array", []))
+        next_chunk_index = chunk.get("next_chunk_index")
+
+    expected_rows = payload.get("manifest", {}).get(
+        "total_row_count"
+    )
+
+    if expected_rows is not None and len(rows) != expected_rows:
+        raise RuntimeError(
+            f"Incomplete Databricks result: expected "
+            f"{expected_rows} rows, received {len(rows)}"
+        )
 
     return pd.DataFrame(rows, columns=columns)
 
