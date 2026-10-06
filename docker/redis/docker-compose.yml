@@ -1,0 +1,37 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: healthcare-recommendation-redis
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${REDIS_PASSWORD}"
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - healthcare_redis_data:/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+    networks:
+      - healthcare-online-features
+
+volumes:
+  healthcare_redis_data:
+
+networks:
+  healthcare-online-features:
+    name: healthcare-online-features
