@@ -80,6 +80,136 @@ pipeline {
                 }
             }
         }
+
+               stage('Resolve and Download Model') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'databricks-host',
+                           variable: 'DATABRICKS_HOST'),
+                    string(credentialsId: 'databricks-client-id',
+                           variable: 'DATABRICKS_CLIENT_ID'),
+                    string(credentialsId: 'databricks-client-secret',
+                           variable: 'DATABRICKS_CLIENT_SECRET')
+                ]) {
+                    sh '''
+                        set -euo pipefail
+
+                        export DATABRICKS_AUTH_TYPE=oauth-m2m
+                        MODEL_NAME="workspace.ml.healthcare_recommendation_30d_model"
+
+                        echo "Resolving Candidate model..."
+
+                        databricks model-versions get-by-alias \
+                          "$MODEL_NAME" \
+                          Candidate
+
+                        echo "Downloading complete MLflow Candidate artifact..."
+
+                        rm -rf inference-api/model
+                        mkdir -p inference-api/model
+
+                        /opt/jenkins-mlops/venv/bin/python - <<'PY'
+import mlflow
+import os
+import shutil
+
+model_uri = "models:/workspace.ml.healthcare_recommendation_30d_model@Candidate"
+
+mlflow.set_tracking_uri("databricks")
+mlflow.set_registry_uri("databricks-uc")
+
+downloaded_path = mlflow.artifacts.download_artifacts(
+    artifact_uri=model_uri
+)
+
+destination = os.path.join(os.getcwd(), "inference-api", "model")
+
+for item in os.listdir(downloaded_path):
+    source = os.path.join(downloaded_path, item)
+    target = os.path.join(destination, item)
+
+    if os.path.isdir(source):
+        shutil.copytree(source, target, dirs_exist_ok=True)
+    else:
+        shutil.copy2(source, target)
+
+print("MODEL_DOWNLOADED_TO:", destination)
+print("MODEL_FILES:")
+for root, dirs, files in os.walk(destination):
+    for filename in files:
+        print(os.path.relpath(os.path.join(root, filename), destination))
+PY
+
+                        test -f inference-api/model/MLmodel
+                        test -f inference-api/model/model.pkl
+                    '''
+                }
+            }
+        }
+            stage('Build and Push Inference Image') {
+            steps {
+                sh '''
+                    set -euo pipefail
+
+                    AWS_REGION="us-east-2"
+                    ECR_REPOSITORY="healthcare-recommendation-inference"
+
+                    ECR_URI=$(aws ecr describe-repositories \
+                      --repository-names "$ECR_REPOSITORY" \
+                      --region "$AWS_REGION" \
+                      --query 'repositories[0].repositoryUri' \
+                      --output text)
+
+                    GIT_SHA=$(git rev-parse --short=12 HEAD)
+                    IMAGE_TAG="candidate-${GIT_SHA}"
+                    IMAGE_URI="${ECR_URI}:${IMAGE_TAG}"
+
+                    echo "Building inference image"
+                    echo "Git SHA: ${GIT_SHA}"
+                    echo "Image: ${IMAGE_URI}"
+
+                    docker build \
+                      --tag "${IMAGE_URI}" \
+                      inference-api
+
+                                        echo "Validating inference container..."
+
+                    docker rm -f healthcare-inference-smoke 2>/dev/null || true
+
+                    docker run -d \
+                      --name healthcare-inference-smoke \
+                      -p 127.0.0.1:8000:8000 \
+                      -e REDIS_HOST=127.0.0.1 \
+                      -e REDIS_PASSWORD=smoke-test-only \
+                      "${IMAGE_URI}"
+
+                    for i in $(seq 1 30); do
+                        if curl -fsS http://127.0.0.1:8000/health; then
+                            HEALTHY=true
+                            break
+                        fi
+                        sleep 2
+                    done
+
+                    test "${HEALTHY:-false}" = "true"
+
+                    docker rm -f healthcare-inference-smoke
+                    aws ecr get-login-password \
+                      --region "$AWS_REGION" |
+                    docker login \
+                      --username AWS \
+                      --password-stdin \
+                      "${ECR_URI%%/*}"
+
+                    docker push "${IMAGE_URI}"
+
+                    echo "IMAGE_URI=${IMAGE_URI}" > image.env
+
+                    docker image inspect "${IMAGE_URI}" \
+                      --format 'IMAGE_ID={{.Id}}'
+                '''
+            }
+        }
     }
 
     post {
