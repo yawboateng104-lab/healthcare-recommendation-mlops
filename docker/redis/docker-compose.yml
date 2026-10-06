@@ -12,7 +12,7 @@ services:
       - "${REDIS_PASSWORD}"
 
     ports:
-      - "6379:6379"
+      - "172.31.28.147:6379:6379"
 
     volumes:
       - healthcare_redis_data:/data
