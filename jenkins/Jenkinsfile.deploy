@@ -227,6 +227,53 @@ PY
                 '''
             }
         }
+
+                 stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    set -euo pipefail
+
+                    AWS_REGION="us-east-2"
+                    EKS_CLUSTER="healthcare-recommendation-mlops-lab-eks"
+                    ECR_REPOSITORY="healthcare-recommendation-inference"
+
+                    . ./image.env
+
+                    IMAGE_TAG="${IMAGE_URI##*:}"
+
+                    IMAGE_DIGEST=$(aws ecr describe-images \
+                      --repository-name "$ECR_REPOSITORY" \
+                      --image-ids imageTag="$IMAGE_TAG" \
+                      --region "$AWS_REGION" \
+                      --query 'imageDetails[0].imageDigest' \
+                      --output text)
+
+                    ECR_URI="${IMAGE_URI%:*}"
+                    DEPLOY_IMAGE="${ECR_URI}@${IMAGE_DIGEST}"
+
+                    echo "Deploying immutable image: ${DEPLOY_IMAGE}"
+
+                    export KUBECONFIG="$WORKSPACE/.kubeconfig"
+
+                    aws eks update-kubeconfig \
+                      --region "$AWS_REGION" \
+                      --name "$EKS_CLUSTER" \
+                      --kubeconfig "$KUBECONFIG"
+
+                    kubectl set image \
+                      deployment/healthcare-inference \
+                      healthcare-inference="${DEPLOY_IMAGE}"
+
+                    kubectl rollout status \
+                      deployment/healthcare-inference \
+                      --timeout=300s
+
+                    kubectl get pods \
+                      -l app=healthcare-inference \
+                      -o wide
+                '''
+            }
+        }
                  stage('Publish Online Features') {
             steps {
                 withCredentials([
