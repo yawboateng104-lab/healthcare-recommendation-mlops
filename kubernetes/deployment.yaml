@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-inference
+  labels:
+    app: healthcare-inference
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: healthcare-inference
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: healthcare-inference
+
+    spec:
+      containers:
+        - name: healthcare-inference
+          image: 093113290899.dkr.ecr.us-east-2.amazonaws.com/healthcare-recommendation-inference@sha256:c0ed3430ca3c6080a0e3e43e21eadefa553950d6d2f078d7ede2852100b77a4b
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8000
+
+          env:
+            - name: REDIS_HOST
+              value: "172.31.28.147"
+
+            - name: REDIS_PORT
+              value: "6379"
+
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: healthcare-redis-secret
+                  key: REDIS_PASSWORD
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
