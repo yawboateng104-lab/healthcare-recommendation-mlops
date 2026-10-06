@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        TF_IN_AUTOMATION = 'true'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh '''
+                    echo "Branch: $(git branch --show-current)"
+                    echo "Commit: $(git rev-parse HEAD)"
+                '''
+            }
+        }
+
+        stage('Terraform Format') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform fmt -check -recursive'
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform init -reconfigure -input=false'
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir('terraform') {
+                    sh '''
+                        terraform plan \
+                          -input=false \
+                          -out=healthcare-pr.tfplan
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            dir('terraform') {
+                sh 'rm -f healthcare-pr.tfplan'
+            }
+        }
+    }
+}
