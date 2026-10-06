@@ -45,6 +45,14 @@
       "type": "double",
       "min": 0.0,
       "max": 1.0
+    },
+    "avg_days_supply_30d": {
+      "type": "double",
+      "description": "Average days supply for prior claims in the previous 30 days"
+    },
+    "avg_refill_number_30d": {
+      "type": "double",
+      "description": "Average refill number for prior claims in the previous 30 days"
     }
   }
 }
