@@ -7,3 +7,4 @@ scikit-learn==1.7.2
 fastapi
 uvicorn[standard]
 redis==7.0.1
+prometheus-client==0.23.1
