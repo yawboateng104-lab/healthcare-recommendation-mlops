@@ -41,3 +41,6 @@ tmp/
 *.joblib
 *.pt
 *.pth
+
+# Jenkins-downloaded MLflow model artifact
+inference-api/model/
