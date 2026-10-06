@@ -210,6 +210,31 @@ PY
                 '''
             }
         }
+                 stage('Publish Online Features') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'databricks-host', variable: 'DATABRICKS_HOST'),
+                    string(credentialsId: 'databricks-client-id', variable: 'DATABRICKS_CLIENT_ID'),
+                    string(credentialsId: 'databricks-client-secret', variable: 'DATABRICKS_CLIENT_SECRET'),
+                    string(credentialsId: 'healthcare-redis-password', variable: 'REDIS_PASSWORD')
+                ]) {
+                    sh '''
+                        set -euo pipefail
+
+                        export DATABRICKS_WAREHOUSE_ID="13097bc9fbd19786"
+                        export REDIS_HOST="172.31.28.147"
+                        export REDIS_PORT="6379"
+
+                        echo "Publishing validated online feature snapshot to Redis..."
+
+                        /opt/jenkins-mlops/venv/bin/python \
+                            online-feature-publisher/publish.py
+
+                        echo "Online feature publication completed."
+                    '''
+                }
+            }
+        }
     }
 
     post {
