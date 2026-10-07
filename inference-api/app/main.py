@@ -8,7 +8,7 @@ from prometheus_client import Counter, Histogram, make_asgi_app
 
 from app.model_service import model_service
 from app.redis_client import get_patient_features
-
+from app.prediction_producer import publish_prediction
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,6 +87,20 @@ def predict(request: PredictionRequest):
         PREDICTION_COUNT.labels(
             class_id=str(prediction)
         ).inc()
+
+        try:
+            publish_prediction(
+                enterprise_patient_id=request.patient_id,
+                predicted_class=prediction,
+                feature_timestamp=features.get("feature_timestamp"),
+                feature_contract_version=features.get(
+                    "feature_contract_version",
+                    "unknown",
+                ),
+            )
+        except Exception:
+            # Prediction telemetry must not fail successful inference.
+            pass
 
         return {
             "patient_id": request.patient_id,

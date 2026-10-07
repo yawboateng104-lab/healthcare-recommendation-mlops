@@ -44,6 +44,20 @@ spec:
                 secretKeyRef:
                   name: healthcare-redis-secret
                   key: REDIS_PASSWORD
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "172.31.28.147:19092,172.31.28.147:29092,172.31.28.147:39092"
+
+            - name: SCHEMA_REGISTRY_URL
+              value: "http://172.31.28.147:8081"
+
+            - name: PREDICTION_TOPIC
+              value: "healthcare-predictions.v1"
+
+            - name: MODEL_NAME
+              value: "workspace.ml.healthcare_recommendation_30d_model"
+
+            - name: MODEL_VERSION
+              value: "1"
 
           readinessProbe:
             httpGet:

@@ -1,0 +1,38 @@
+{
+  "type": "record",
+  "name": "HealthcarePredictionEvent",
+  "namespace": "com.healthcare.predictions",
+  "fields": [
+    {"name": "prediction_id", "type": "string"},
+    {"name": "event_type", "type": "string", "default": "healthcare_prediction"},
+    {"name": "event_version", "type": "int", "default": 1},
+
+    {"name": "enterprise_patient_id", "type": "string"},
+
+    {
+      "name": "prediction_timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+
+    {"name": "model_name", "type": "string"},
+    {"name": "model_version", "type": "string"},
+    {"name": "feature_contract_version", "type": "string"},
+
+    {
+      "name": "feature_timestamp",
+      "type": [
+        "null",
+        {
+          "type": "long",
+          "logicalType": "timestamp-millis"
+        }
+      ],
+      "default": null
+    },
+
+    {"name": "predicted_class", "type": "int"}
+  ]
+}
