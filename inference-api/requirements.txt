@@ -12,3 +12,4 @@ prometheus-client==0.23.1
 confluent-kafka==2.15.1
 httpx
 authlib
+fastavro
